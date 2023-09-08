@@ -1,0 +1,53 @@
+name: Build & release
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    env:
+      targetName: kancollelockcheck.exe
+    steps:
+      - name: Set up MinGW
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: 'x64'
+          version: '8.1.0'
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '5.15.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_mingw81'
+      - uses: actions/checkout@v4
+      - name: build
+        shell: pwsh
+        run: |
+          md ../build-kancollelockcheck-Desktop_Qt_5_15_2_MinGW_64_bit-Release
+          cd ../build-kancollelockcheck-Desktop_Qt_5_15_2_MinGW_64_bit-Release
+          qmake ../kancollelockcheck/kancollelockcheck.pro -spec win32-g++ "CONFIG+=qtquickcompiler"
+          mingw32-make
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          # body: ${{ github.event.head_commit.message }}
+          draft: false
+          prerelease: false
+      - name: Upload release
+        id : upload_release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ../build-kancollelockcheck-Desktop_Qt_5_15_2_MinGW_64_bit-Release/release/kancollelockcheck.exe
+          asset_name: kancollelockcheck.exe
+          asset_content_type: application/octet-stream
